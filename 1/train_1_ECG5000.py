@@ -8,6 +8,7 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.models import Model
+from keras import backend as K
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix
@@ -65,6 +66,7 @@ def plot_acc(history):
     plt.ylabel('accuracy')
     plt.xlabel('epoch')
     plt.legend(['train', 'val'])
+    plt.savefig("./Figures/1_ECG5000_accuracy.png", format="png")
     return plt.show()
 
 def plot_loss(history):
@@ -74,6 +76,7 @@ def plot_loss(history):
     plt.ylabel('loss')
     plt.xlabel('epoch')
     plt.legend(['train', 'val'])
+    plt.savefig("./Figures/1_ECG5000_loss.png", format="png")
     return plt.show()
 
 def cm_plot(model, x_test):
@@ -90,8 +93,26 @@ def cm_plot(model, x_test):
     sns.heatmap(cmn, cmap='Blues', annot=True, fmt='.2f')
     sns.set(font_scale=1.3)
     plt.title("Confusion Matrix")
+    plt.savefig("./Figures/1_ECG5000_confusion.png", format="png")
 
     return plt.show()
+
+def recall_m(y_true, y_pred):
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
+    recall = true_positives / (possible_positives + K.epsilon())
+    return recall
+
+def precision_m(y_true, y_pred):
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+    precision = true_positives / (predicted_positives + K.epsilon())
+    return precision
+
+def f1_m(y_true, y_pred):
+    precision = precision_m(y_true, y_pred)
+    recall = recall_m(y_true, y_pred)
+    return 2*((precision*recall)/(precision+recall+K.epsilon()))
 
 
 
@@ -110,8 +131,8 @@ y_train = df_train.values[:,0]   # [all rows, column 0]
 x_test = df_test.values[:,1:]    # [all rows, column 1 to end]
 y_test = df_test.values[:,0]     # [all rows, column 0]
 
-x_train = np.concatenate((x_train, x_os))
-y_train = np.concatenate((y_train, y_os))
+# x_train = np.concatenate((x_train, x_os))
+# y_train = np.concatenate((y_train, y_os))
 
 scaler = preprocessing.MinMaxScaler()
 data_scaler = scaler.fit(x_train)
@@ -133,23 +154,6 @@ x_train, x_val, y_train, y_val = train_test_split(x_train,
                                                   random_state=42)
 
 layer_in = layers.Input(shape=(140,1))
-# layer = layers.Conv1D(filters=32, kernel_size=16, activation='relu')(layer_in)
-# layer = layers.Conv1D(filters=32, kernel_size=16, activation='relu')(layer)
-# layer = layers.MaxPool1D(pool_size=2)(layer)
-# layer = layers.Conv1D(filters=128, kernel_size=64, activation='relu')(layer_in)
-# layer = layers.Conv1D(filters=128, kernel_size=64, activation='relu')(layer)
-# layer = layers.MaxPool1D(pool_size=2)(layer)
-# layer = layers.Conv1D(filters=256, kernel_size=128, activation='relu')(layer_in)
-# layer = layers.Conv1D(filters=256, kernel_size=128, activation='relu')(layer)
-# layer = layers.MaxPool1D(pool_size=2)(layer)
-# layer = layers.Conv1D(filters=512, kernel_size=256, activation='relu')(layer_in)
-# layer = layers.Conv1D(filters=512, kernel_size=256, activation='relu')(layer)
-# layer = layers.MaxPool1D(pool_size=2)(layer)
-# layer = layers.GlobalAveragePooling1D()(layer)
-# layer = layers.Dropout(0.2)(layer)
-# layer = layers.Dropout(0.2)(layer)
-# #layer_out = layers.Dense(5, activation='softmax')(layer)
-
 layer = layers.Conv1D(filters=32, kernel_size=4, activation='relu')(layer_in)
 layer = layers.MaxPool1D(pool_size=2)(layer)
 layer = layers.Dropout(0.2)(layer)
@@ -164,7 +168,6 @@ layer = layers.MaxPool1D(pool_size=2)(layer)
 layer = layers.Dropout(0.2)(layer)
 layer = layers.Flatten()(layer)
 layer = layers.Dense(32, activation='relu')(layer)
-# layer = layers.Dropout(0.2)(layer)
 layer_out = layers.Dense(5, activation='softmax')(layer)
 
 model = keras.models.Model(layer_in, layer_out)
@@ -172,7 +175,7 @@ model = keras.models.Model(layer_in, layer_out)
 optimizer = keras.optimizers.Adam(learning_rate=0.001)
 
 callbacks = [
-             keras.callbacks.ModelCheckpoint('model.h5', 
+             keras.callbacks.ModelCheckpoint('ecg_model.h5', 
                                              save_best_only=True, 
                                              monitor='val_loss'),
              keras.callbacks.ReduceLROnPlateau(monitor='val_loss', 
@@ -199,6 +202,15 @@ history = model.fit(x_train, y_train,
 test_loss, test_acc = model.evaluate(x_test, y_test)
 print("Test accuracy", test_acc)
 print("Test loss", test_loss)
+# print("F1 score", tf.keras.backend.get_value(f1_m(x_test, y_test)))
+# print("Precision", tf.keras.backend.get_value(precision_m(x_test, y_test)))
+# print("Recall", tf.keras.backend.get_value(recall_m(x_test, y_test)))
+from sklearn.metrics import classification_report
+
+y_pred = model.predict(x_test, batch_size=64, verbose=1)
+y_pred_bool = np.argmax(y_pred, axis=1)
+
+print(classification_report(y_test, y_pred_bool))
 
 plot_acc(history)
 plot_loss(history)
