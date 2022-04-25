@@ -7,6 +7,7 @@ from glob import glob
 from tqdm import tqdm
 import wfdb as wf
 import h5py
+import time
 
 import tensorflow as tf
 from tensorflow import keras
@@ -19,9 +20,10 @@ from sklearn.metrics import confusion_matrix
 from sklearn import preprocessing
 from sklearn.metrics import classification_report
 from imblearn.combine import SMOTETomek
+from imblearn.over_sampling import SMOTE
 
 
-def over_under_sampling(dataframe):
+def over_under_sampling(dataframe, labels):
     """
     Use SMOTETomek technique to oversample our dataset. 
     
@@ -33,35 +35,48 @@ def over_under_sampling(dataframe):
     with the dominant class 1 into the SMOTETomek over- & undersampler
     to balance the dataset. 
     """
+    print("Starting Over Under Fitting...")
     # lists to store the created values in
     x_res = []
     y_res = []
 
-    for i in range(2,6):
-
+    for i in range(1,5):
         # create copy of the dataframe
         df_copy = dataframe.copy()
-        # choose samples of i-th class
-        df = df_copy[df_copy['c0'] == i]
-        # add samples from 1st class
-        df = df.append(df_copy[df_copy['c0'] == 1])
-        # split the dataframe into x - data and y - labels
-        x = df.values[:,1:]
-        y = df.values[:,0]
+        df_copy['labels'] = labels
 
-        # define the imbalance function
-        smtomek = SMOTETomek(random_state=42)
-        # fit it on our data
-        x_r, y_r = smtomek.fit_resample(x, y)
-        
-        # we want to skip the data we fit it on - only want the new data
-        skip = y.shape[0]
-        # append the data into our above lists
-        x_res.append(x_r[skip:,:])
-        y_res.append(y_r[skip:])
+        # choose samples of i-th class
+        df = df_copy[df_copy['labels'] == i]
+        # add samples from 1st class
+        df = pd.concat((df, df_copy[df_copy['labels'] == 0]))
+        #df = df.append(df_copy[df_copy['labels'] == 0])
+        # split the dataframe into x - data and y - labels
+        x = df.values[:,:-1]
+        y = df.values[:,-1]
+        print(x.shape, y.shape)
+
+        num_neighbors = 5
+        isLowSamples = True
+        while isLowSamples and num_neighbors > 0:
+            try:
+                # define the imbalance function
+                smote = SMOTE(k_neighbors=num_neighbors)
+                smtomek = SMOTETomek(smote=smote, random_state=42)
+                # fit it on our data
+                x_r, y_r = smtomek.fit_resample(x, y)
+                # we want to skip the data we fit it on - only want the new data
+                skip = y.shape[0]
+                # append the data into our above lists
+                x_res.append(x_r[skip:,:])
+                y_res.append(y_r[skip:])
+                isLowSamples = False
+            except:
+                print("Number of samples too low, retrying with less neighbors.")
+                num_neighbors = num_neighbors - 1
 
     # return the data as concatenated arrays -> only one array of all samples
     # instead of a list of arrays
+    print("Over Under Fitting... done.")
     return np.concatenate(x_res), np.concatenate(y_res)
 
 def plot_acc(history):
@@ -143,7 +158,7 @@ def create_labels(N, S, V, F, U):
 
 	return N_Labels, S_Labels, V_Labels, F_Labels, U_Labels
 
-def preprocessing(Dimension=None, File=None):
+def preprocessing_f(Dimension=None, File=None):
 	N, S, V, F, U = Load_Data(File=File)
 	NSet, SSet, VSet, FSet, USet = N[:], S[:], V[:], F[:], U[:]
 	N_L, S_L, V_L, F_L, U_L = create_labels(NSet, SSet, VSet, FSet, USet)
@@ -159,9 +174,38 @@ def preprocessing(Dimension=None, File=None):
 
 	return Dataset, Labels
 
-Dataset, Labels = preprocessing(File='../datasets/MIT-BIH/train')
+start_time = time.time()
+
+Dataset, Labels = preprocessing_f(File='../datasets/MIT-BIH/train')
 
 x_train, x_val, y_train, y_val = train_test_split(Dataset, Labels, test_size=0.2)
+
+# df_train = pd.DataFrame(x_train)
+# x_train = df_train.add_prefix('c')
+# df_test = pd.DataFrame(y_train)
+# y_train = df_test.add_prefix('c')
+# df_val0 = pd.DataFrame(x_val)
+# x_val = df_val0.add_prefix('c')
+# df_val1 = pd.DataFrame(y_val)
+# y_val = df_val1.add_prefix('c')
+
+
+# x_os,y_os = over_under_sampling(x_train, y_train)
+# x_val_os, y_val_os = over_under_sampling(x_val, y_val)
+
+# x_train = np.concatenate((x_train, x_os))
+# y_train = np.concatenate((y_train, np.expand_dims(y_os, axis=1)))
+# x_val = np.concatenate((x_val, x_val_os))
+# y_val = np.concatenate((y_val, np.expand_dims(y_val_os, axis=1)))
+
+scaler = preprocessing.MinMaxScaler()
+data_scaler_train = scaler.fit(x_train)
+data_scaler_val = scaler.fit(x_val)
+
+x_train = data_scaler_train.transform(x_train)
+x_train = np.expand_dims(x_train, axis=-1)
+x_val = data_scaler_val.transform(x_val)
+x_val = np.expand_dims(x_val, axis=-1)
 
 
 layer_in = layers.Input(shape=(x_train.shape[1],1))
@@ -210,11 +254,17 @@ history = model.fit(x_train, y_train,
                     validation_data=(x_val, y_val),
                     shuffle=True, callbacks=callbacks)
 
+print("Training time: " + str(time.time() - start_time) + "sec.")
 
+
+start_time = time.time()
 
 model.load_weights('./mit_model.h5')
 path = '../datasets/MIT-BIH/test'
-x_test, y_test = preprocessing(File=path)
+x_test, y_test = preprocessing_f(File=path)
+data_scaler_test = scaler.fit(x_test)
+x_test = data_scaler_test.transform(x_test)
+x_test = np.expand_dims(x_test, axis=-1)
 test_loss, test_acc = model.evaluate(x_test, y_test)
 
 print("Test accuracy", test_acc)
@@ -222,6 +272,9 @@ print("Test loss", test_loss)
 
 y_pred = model.predict(x_test, batch_size=64, verbose=1)
 y_pred_bool = np.argmax(y_pred, axis=1)
+
+
+print("Testing time: " + str(x_test.shape[0] / (time.time() - start_time)) + "samples/sec.")
 
 print(classification_report(y_test, y_pred_bool))
 
