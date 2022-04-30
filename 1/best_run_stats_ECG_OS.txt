@@ -1,9 +1,9 @@
 Epoch 61: early stopping
 Training time:75.84215140342712 sec
-16/16 [==============================] - 0s 10ms/step - loss: 0.2943 - accuracy: 0.9200
+
 Test accuracy 0.9200000166893005
 Test loss 0.2943311333656311
-8/8 [==============================] - 0s 29ms/step
+
 Testing time: 807.7566752572059samples/sec.
               precision    recall  f1-score   support
 

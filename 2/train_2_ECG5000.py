@@ -67,7 +67,7 @@ def plot_acc(history):
     plt.ylabel('accuracy')
     plt.xlabel('epoch')
     plt.legend(['train', 'val'])
-    plt.savefig("./Figures/1_ECG5000_accuracy.png", format="png")
+    plt.savefig("./Figures/2_ECG5000_accuracy.png", format="png")
     return plt.show()
 
 def plot_loss(history):
@@ -77,7 +77,7 @@ def plot_loss(history):
     plt.ylabel('loss')
     plt.xlabel('epoch')
     plt.legend(['train', 'val'])
-    plt.savefig("./Figures/1_ECG5000_loss.png", format="png")
+    plt.savefig("./Figures/2_ECG5000_loss.png", format="png")
     return plt.show()
 
 def cm_plot(model, x_test):
@@ -94,7 +94,7 @@ def cm_plot(model, x_test):
     sns.heatmap(cmn, cmap='Blues', annot=True, fmt='.2f')
     sns.set(font_scale=1.3)
     plt.title("Confusion Matrix")
-    plt.savefig("./Figures/1_ECG5000_confusion.png", format="png")
+    plt.savefig("./Figures/2_ECG5000_confusion.png", format="png")
 
     return plt.show()
 
@@ -155,16 +155,7 @@ x_train, x_val, y_train, y_val = train_test_split(x_train,
                                                   random_state=42)
 
 layer_in = layers.Input(shape=(140,1))
-layer = layers.Conv1D(filters=32, kernel_size=4, activation='relu')(layer_in)
-layer = layers.MaxPool1D(pool_size=2)(layer)
-layer = layers.Dropout(0.2)(layer)
-layer = layers.Conv1D(filters=32, kernel_size=4, activation='relu')(layer)
-layer = layers.MaxPool1D(pool_size=2)(layer)
-layer = layers.Dropout(0.2)(layer)
-layer = layers.Conv1D(filters=32, kernel_size=4, activation='relu')(layer_in)
-layer = layers.MaxPool1D(pool_size=2)(layer)
-layer = layers.Dropout(0.2)(layer)
-layer = layers.Conv1D(filters=32, kernel_size=4, activation='relu')(layer)
+layer = layers.Conv1D(filters=64, kernel_size=3, activation='relu')(layer_in)
 layer = layers.MaxPool1D(pool_size=2)(layer)
 layer = layers.Dropout(0.2)(layer)
 layer = layers.Flatten()(layer)
