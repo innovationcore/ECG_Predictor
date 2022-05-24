@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import argparse
+import time
 
 import tensorflow as tf
 from tensorflow import keras
@@ -17,7 +18,8 @@ from sklearn.metrics import confusion_matrix
 from sklearn import preprocessing
 from imblearn.combine import SMOTETomek
 from sklearn.metrics import classification_report
-import time
+
+from clearml import Task, Logger
 
 
 def over_under_sampling(dataframe):
@@ -74,7 +76,7 @@ def plot_acc(history, out_dir):
     if not os.path.exists(fig_path):
         os.makedirs(fig_path)
     plt.savefig(os.path.join(fig_path, '1_ECG5000_accuracy.png'), format="png")
-    return plt.show()
+    #plt.show()
 
 def plot_loss(history, out_dir):
     plt.plot(history.history['loss'])
@@ -87,9 +89,9 @@ def plot_loss(history, out_dir):
     if not os.path.exists(fig_path):
         os.makedirs(fig_path)
     plt.savefig(os.path.join(fig_path, '1_ECG5000_loss.png'), format="png")
-    return plt.show()
+    #plt.show()
 
-def cm_plot(model, x_test, out_dir):
+def cm_plot(model, x_test, y_test, out_dir):
     y_predict = model.predict(x_test)
     y_pred = []
 
@@ -107,7 +109,8 @@ def cm_plot(model, x_test, out_dir):
     if not os.path.exists(fig_path):
         os.makedirs(fig_path)
     plt.savefig(os.path.join(fig_path, '1_ECG5000_confusion.png'), format="png")
-    return plt.show()
+    # Logger.current_logger().report_matplotlib_figure(title='confusion matrix', series='ignored', figure=plt, iteration=None, report_image=False, report_interactive=True)
+    #plt.show()
 
 def recall_m(y_true, y_pred):
     true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
@@ -132,12 +135,19 @@ def parse_opt():
     parser.add_argument('--output-dir', required=True, type=str, default='results/', help='Path to output stuff')
     parser.add_argument('--num-epochs', type=int, default=100, help='Number of training epochs')
     parser.add_argument('--batch-size', type=int, default=128, help='Batch size')
+    parser.add_argument('--lr', type=float, default=0.001, help='Learning rate')
+    parser.add_argument('--val-size', type=float, default=0.2, help='Percent to be used for validation (0.0-1.0)')
     parser.add_argument('--verbosity', type=int, default=1, help='Verbosity (1-3)')
+    parser.add_argument('--random-state', type=int, default=69, help='Random state for train_test_split')
+    parser.add_argument('--with-clearml',  type=bool, default=False, help='Run training with ClearML enabled')
     opt = parser.parse_args()
     return opt
 
-if __name__ == '__main__':
+def main():
     opt = parse_opt()
+    if opt.with_clearml:
+        task = Task.init(project_name='ECG Predictor', task_name='ECG-CNN-LSTM')
+
     if not os.path.exists(opt.output_dir):
         os.makedirs(opt.output_dir)
     if not os.path.exists(os.path.join(opt.output_dir, 'figures')):
@@ -180,40 +190,8 @@ if __name__ == '__main__':
 
     x_train, x_val, y_train, y_val = train_test_split(x_train,
                                                     y_train,
-                                                    test_size=0.2,
-                                                    random_state=42)
-
-    ######## Only Conv1D ################
-    # layer_in = layers.Input(shape=(140,1))
-    # layer = layers.Conv1D(filters=32, kernel_size=4, activation='relu')(layer_in)
-    # layer = layers.MaxPool1D(pool_size=2)(layer)
-    # layer = layers.Conv1D(filters=32, kernel_size=4, activation='relu')(layer)
-    # layer = layers.MaxPool1D(pool_size=2)(layer)
-    # layer = layers.Flatten()(layer)
-    # layer = layers.Dense(32, activation='relu')(layer)
-    # layer = layers.Dropout(0.2)(layer)
-    # layer_out = layers.Dense(5, activation='softmax')(layer)
-
-    # model = keras.models.Model(layer_in, layer_out)
-
-    # optimizer = keras.optimizers.Adam(learning_rate=0.001)
-
-    # callbacks = [
-    #              keras.callbacks.ModelCheckpoint('model.h5', 
-    #                                              save_best_only=True, 
-    #                                              monitor='val_loss'),
-    #              keras.callbacks.ReduceLROnPlateau(monitor='val_loss', 
-    #                                                factor=0.1, 
-    #                                                patience=3,
-    #                                                ),
-    #              keras.callbacks.EarlyStopping(monitor='val_loss', 
-    #                                            patience=8,
-    #                                            verbose=1)
-    #              ]
-
-    # model.compile(loss='sparse_categorical_crossentropy',
-    #               optimizer=optimizer, 
-    #               metrics=['accuracy'])
+                                                    test_size=opt.val_size,
+                                                    random_state=opt.random_state)
 
     ########### Conv1D and LSTM #############
     layer_in = layers.Input(shape=(140,1))
@@ -227,7 +205,7 @@ if __name__ == '__main__':
 
     model = keras.models.Model(layer_in, layer_out)
 
-    optimizer = keras.optimizers.Adam(learning_rate=0.001)
+    optimizer = keras.optimizers.Adam(learning_rate=opt.lr)
     callbacks = [
                 keras.callbacks.ModelCheckpoint(os.path.join(opt.output_dir, 'ECG500model.h5'), 
                                                 save_best_only=True, 
@@ -239,9 +217,10 @@ if __name__ == '__main__':
                 keras.callbacks.EarlyStopping(monitor='val_loss', 
                                             patience=8,
                                             verbose=1),
-                keras.callbacks.CSVLogger(os.path.join(opt.output_dir, 'logs', 'log'+str(time.time())+'.csv'), 
-                                            append=True, 
-                                            separator=',')
+                # keras.callbacks.CSVLogger(os.path.join(opt.output_dir, 'logs', 'log'+str(time.time())+'.csv'), 
+                #                             append=True, 
+                #                             separator=','),
+                tf.keras.callbacks.TensorBoard(log_dir=os.path.join(opt.output_dir, 'logs'))
                 ]
 
     model.compile(loss='sparse_categorical_crossentropy',
@@ -283,5 +262,47 @@ if __name__ == '__main__':
 
     plot_acc(history, opt.output_dir)
     plot_loss(history, opt.output_dir)
-    cm_plot(model, x_test, opt.output_dir)
+    cm_plot(model, x_test, y_test, opt.output_dir)
 
+    # task.upload_artifact(artifact_object=os.path.join(opt.output_dir, 'figures', '1_ECG5000_confusion.png'), name='confusion matrix')
+    
+    if opt.with_clearml:
+        task.close()
+
+
+if __name__ == '__main__':
+    main()
+
+
+
+ ######## Only Conv1D ################
+    # layer_in = layers.Input(shape=(140,1))
+    # layer = layers.Conv1D(filters=32, kernel_size=4, activation='relu')(layer_in)
+    # layer = layers.MaxPool1D(pool_size=2)(layer)
+    # layer = layers.Conv1D(filters=32, kernel_size=4, activation='relu')(layer)
+    # layer = layers.MaxPool1D(pool_size=2)(layer)
+    # layer = layers.Flatten()(layer)
+    # layer = layers.Dense(32, activation='relu')(layer)
+    # layer = layers.Dropout(0.2)(layer)
+    # layer_out = layers.Dense(5, activation='softmax')(layer)
+
+    # model = keras.models.Model(layer_in, layer_out)
+
+    # optimizer = keras.optimizers.Adam(learning_rate=0.001)
+
+    # callbacks = [
+    #              keras.callbacks.ModelCheckpoint('model.h5', 
+    #                                              save_best_only=True, 
+    #                                              monitor='val_loss'),
+    #              keras.callbacks.ReduceLROnPlateau(monitor='val_loss', 
+    #                                                factor=0.1, 
+    #                                                patience=3,
+    #                                                ),
+    #              keras.callbacks.EarlyStopping(monitor='val_loss', 
+    #                                            patience=8,
+    #                                            verbose=1)
+    #              ]
+
+    # model.compile(loss='sparse_categorical_crossentropy',
+    #               optimizer=optimizer, 
+    #               metrics=['accuracy'])
