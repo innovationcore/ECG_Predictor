@@ -14,7 +14,7 @@ from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.models import Model
 from keras import backend as K
-from focal_loss import BinaryFocalLoss
+from focal_loss import BinaryFocalLoss, SparseCategoricalFocalLoss
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix
@@ -182,11 +182,25 @@ def preprocessing_f(Dimension=None, File=None):
 		# U_L = np.reshape(U_L, (-1, 1))
 	Dataset = np.concatenate((NSet, SSet, VSet, FSet), axis=0)
 	Labels = np.concatenate((N_L, S_L, V_L, F_L), axis=0)
-
 	return Dataset, Labels
 
+def specificity(y_true, y_pred):
+    """
+    param:
+    y_pred - Predicted labels
+    y_true - True labels 
+    Returns:
+    Specificity score
+    """
+    neg_y_true = 1 - y_true
+    neg_y_pred = 1 - y_pred
+    fp = K.sum(neg_y_true * y_pred)
+    tn = K.sum(neg_y_true * neg_y_pred)
+    specificity = tn / (tn + fp + K.epsilon())
+    return specificity
+
 if __name__ == '__main__':
-	start_time = time.time()
+	
 
 	x_train, y_train = preprocessing_f(File='../datasets/MIT-BIH/train')
 	Dataset = x_train
@@ -195,6 +209,8 @@ if __name__ == '__main__':
 	
 
 	x_train, x_val, y_train, y_val = train_test_split(Dataset, Labels, test_size=0.2)
+	# x_train = Dataset
+	# y_train = Labels
 
 	df_train = pd.DataFrame(x_train)
 	x_train = df_train.add_prefix('c')
@@ -216,21 +232,24 @@ if __name__ == '__main__':
 
 	scaler = preprocessing.MinMaxScaler()
 	data_scaler_train = scaler.fit(x_train)
+	data_scaler_val = scaler.fit(x_val)
 	data_scaler_test = scaler.fit(x_test)
 
 	x_train = data_scaler_train.transform(x_train)
-	x_val = data_scaler_train.transform(x_val)
+	x_val = data_scaler_val.transform(x_val)
 	x_test = data_scaler_test.transform(x_test)
+
+	start_time = time.time()
 
 	# training
 	layer_in = layers.Input(shape=(x_train.shape[1],1))
-	layer = layers.Conv1D(filters=32, kernel_size=3, activation='relu')(layer_in)
+	layer = layers.Conv1D(filters=32, kernel_size=4, activation='relu')(layer_in)
 	layer = layers.BatchNormalization()(layer)
 	layer = layers.MaxPool1D(pool_size=2)(layer)
-	layer = layers.Conv1D(filters=64, kernel_size=3, activation='relu')(layer)
+	layer = layers.Conv1D(filters=64, kernel_size=4, activation='relu')(layer)
 	layer = layers.BatchNormalization()(layer)
 	layer = layers.MaxPool1D(pool_size=2)(layer)
-	layer = layers.Conv1D(filters=32, kernel_size=3, activation='relu')(layer)
+	layer = layers.Conv1D(filters=32, kernel_size=4, activation='relu')(layer)
 	layer = layers.BatchNormalization()(layer)
 	layer = layers.MaxPool1D(pool_size=2)(layer)
 	layer = layers.LSTM(64, return_sequences=False,)(layer)
@@ -256,10 +275,9 @@ if __name__ == '__main__':
 											verbose=1)
 				]
 
-	model.compile(loss=BinaryFocalLoss(gamma=2),
+	model.compile(loss=SparseCategoricalFocalLoss(gamma=2),
 				optimizer=optimizer, 
-				metrics=['accuracy']) #sparse_categorical_crossentropy
-
+				metrics=['accuracy']) #sparse_categorical_crossentropy, BinaryFocalLoss(gamma=2)
 
 	model.summary()
 
@@ -284,59 +302,59 @@ if __name__ == '__main__':
 
 	kfold = KFold(n_splits=10, shuffle=True)
 	fold_no = 1
-	for train, test in kfold.split(x_train, y_train):
-		layer_in = layers.Input(shape=(x_train.shape[1],1))
-		layer = layers.Conv1D(filters=32, kernel_size=3, activation='relu')(layer_in)
-		layer = layers.BatchNormalization()(layer)
-		layer = layers.MaxPool1D(pool_size=2)(layer)
-		layer = layers.Conv1D(filters=64, kernel_size=3, activation='relu')(layer)
-		layer = layers.BatchNormalization()(layer)
-		layer = layers.MaxPool1D(pool_size=2)(layer)
-		layer = layers.Conv1D(filters=32, kernel_size=3, activation='relu')(layer)
-		layer = layers.BatchNormalization()(layer)
-		layer = layers.MaxPool1D(pool_size=2)(layer)
-		layer = layers.LSTM(64, return_sequences=False,)(layer)
-		layer = layers.Flatten()(layer)
-		layer = layers.Dense(128, activation='relu')(layer)
-		layer = layers.Dropout(0.2)(layer)
-		layer_out = layers.Dense(4, activation='softmax')(layer)
+	# for train, test in kfold.split(x_train, y_train):
+	# 	layer_in = layers.Input(shape=(x_train.shape[1],1))
+	# 	layer = layers.Conv1D(filters=32, kernel_size=4, activation='relu')(layer_in)
+	# 	layer = layers.BatchNormalization()(layer)
+	# 	layer = layers.MaxPool1D(pool_size=2)(layer)
+	# 	layer = layers.Conv1D(filters=64, kernel_size=4, activation='relu')(layer)
+	# 	layer = layers.BatchNormalization()(layer)
+	# 	layer = layers.MaxPool1D(pool_size=2)(layer)
+	# 	layer = layers.Conv1D(filters=32, kernel_size=4, activation='relu')(layer)
+	# 	layer = layers.BatchNormalization()(layer)
+	# 	layer = layers.MaxPool1D(pool_size=2)(layer)
+	# 	layer = layers.LSTM(64, return_sequences=False,)(layer)
+	# 	layer = layers.Flatten()(layer)
+	# 	layer = layers.Dense(128, activation='relu')(layer)
+	# 	layer = layers.Dropout(0.2)(layer)
+	# 	layer_out = layers.Dense(4, activation='softmax')(layer)
 
-		model = keras.models.Model(layer_in, layer_out)
+	# 	model = keras.models.Model(layer_in, layer_out)
 
-		optimizer = keras.optimizers.Adam(learning_rate=0.001)
+	# 	optimizer = keras.optimizers.Adam(learning_rate=0.001)
 
-		callbacks = [
-					# keras.callbacks.ModelCheckpoint('mit_model.h5', 
-					# 								save_best_only=True, 
-					# 								monitor='loss'),
-					keras.callbacks.ReduceLROnPlateau(monitor='loss', 
-													factor=0.1, 
-													patience=3,
-													),
-					keras.callbacks.EarlyStopping(monitor='loss', 
-												patience=8,
-												verbose=1)
-					]
+	# 	callbacks = [
+	# 				# keras.callbacks.ModelCheckpoint('mit_model.h5', 
+	# 				# 								save_best_only=True, 
+	# 				# 								monitor='loss'),
+	# 				keras.callbacks.ReduceLROnPlateau(monitor='loss', 
+	# 												factor=0.1, 
+	# 												patience=3,
+	# 												),
+	# 				keras.callbacks.EarlyStopping(monitor='loss', 
+	# 											patience=8,
+	# 											verbose=1)
+	# 				]
 
-		model.compile(loss=BinaryFocalLoss(gamma=2),
-					optimizer=optimizer, 
-					metrics=['accuracy']) #sparse_categorical_crossentropy
+	# 	model.compile(loss=BinaryFocalLoss(gamma=2),
+	# 				optimizer=optimizer, 
+	# 				metrics=['accuracy']) #sparse_categorical_crossentropy
 
 
-		model.summary()
+	# 	model.summary()
 
-		history = model.fit(x_train[train], y_train[train],
-							batch_size=128, epochs=100, verbose=1,
-							shuffle=True, callbacks=callbacks)
+	# 	history = model.fit(x_train[train], y_train[train],
+	# 						batch_size=128, epochs=100, verbose=1,
+	# 						shuffle=True, callbacks=callbacks)
 
-		# Generate generalization metrics
-		scores = model.evaluate(x_train[test], y_train[test], verbose=0)
-		print(f'Score for fold {fold_no}: {model.metrics_names[0]} of {scores[0]}; {model.metrics_names[1]} of {scores[1]*100}%')
-		acc_per_fold.append(scores[1] * 100)
-		loss_per_fold.append(scores[0])
+	# 	# Generate generalization metrics
+	# 	scores = model.evaluate(x_train[test], y_train[test], verbose=0)
+	# 	print(f'Score for fold {fold_no}: {model.metrics_names[0]} of {scores[0]}; {model.metrics_names[1]} of {scores[1]*100}%')
+	# 	acc_per_fold.append(scores[1] * 100)
+	# 	loss_per_fold.append(scores[0])
 
-		# Increase fold number
-		fold_no = fold_no + 1
+	# 	# Increase fold number
+	# 	fold_no = fold_no + 1
 
 	print("Fold time: " + str(time.time() - start_time) + " sec.")
 	plot_acc_arr(acc_per_fold)
@@ -344,13 +362,18 @@ if __name__ == '__main__':
 
 	model.load_weights('./mit_model.h5')
 	data_scaler_test = scaler.fit(x_test)
-	test_loss, test_acc = model.evaluate(x_test, y_test)
+	test_loss, test_acc = model.evaluate(x_test, y_test, verbose=1) # f1_score, precision, recall
 
-	print("Test accuracy", test_acc)
-	print("Test loss", test_loss)
+	print("Test accuracy: ", test_acc)
+	print("Test loss: ", test_loss)
+	# print("Test f1: ", f1_score)
+	# print("Test precision: ", precision)
+	# print("Test recall: ", recall)
 
 	y_pred = model.predict(x_test, batch_size=128, verbose=1)
 	y_pred_bool = np.argmax(y_pred, axis=1)
+
+	print("Specificity: ", specificity(y_test, y_pred))
 
 
 	print("Testing time: " + str(x_test.shape[0] / (time.time() - start_time)) + " samples/sec.")
