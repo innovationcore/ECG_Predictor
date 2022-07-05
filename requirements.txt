@@ -3,3 +3,4 @@ seaborn==0.11.2
 tensorflow==2.9.1
 imbalanced-learn==0.9.1
 clearml==1.4.1
+wfdb==3.4.1
