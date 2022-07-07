@@ -131,8 +131,8 @@ def f1_m(y_true, y_pred):
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data-dir', required=True, type=str, default='datasets/ECG5000/', help='Path to the ECG5000 datasets')
-    parser.add_argument('--output-dir', required=True, type=str, default='results/', help='Path to output stuff')
+    parser.add_argument('--data-dir', type=str, default='../datasets/ECG5000/', help='Path to the ECG5000 datasets')
+    parser.add_argument('--output-dir', type=str, default='results/', help='Path to output stuff')
     parser.add_argument('--num-epochs', type=int, default=100, help='Number of training epochs')
     parser.add_argument('--batch-size', type=int, default=128, help='Batch size')
     parser.add_argument('--lr', type=float, default=0.001, help='Learning rate')
@@ -192,6 +192,14 @@ def main():
                                                     y_train,
                                                     test_size=opt.val_size,
                                                     random_state=opt.random_state)
+
+                    
+
+                                                    
+
+    print(type(y_train))
+    print(y_train.shape)
+    exit()
 
     ########### Conv1D and LSTM #############
     layer_in = layers.Input(shape=(140,1))

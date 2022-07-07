@@ -8,6 +8,7 @@ import argparse
 import time
 import wfdb
 import ast
+import itertools
 
 import tensorflow as tf
 from tensorflow import keras
@@ -138,13 +139,28 @@ def f1_m(y_true, y_pred):
     recall = recall_m(y_true, y_pred)
     return 2*((precision*recall)/(precision+recall+K.epsilon()))
 
+def specificity(y_true, y_pred):
+    """
+    param:
+    y_pred - Predicted labels
+    y_true - True labels 
+    Returns:
+    Specificity score
+    """
+    neg_y_true = 1 - y_true
+    neg_y_pred = 1 - y_pred
+    fp = K.sum(neg_y_true * y_pred)
+    tn = K.sum(neg_y_true * neg_y_pred)
+    specificity = tn / (tn + fp + K.epsilon())
+    return specificity
+
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data-dir', required=True, type=str, default='datasets/PTB/', help='Path to the PTB datasets')
-    parser.add_argument('--output-dir', required=True, type=str, default='results/', help='Path to output stuff')
+    parser.add_argument('--data-dir', type=str, default='../datasets/PTB/', help='Path to the PTB datasets')
+    parser.add_argument('--output-dir', type=str, default='results/', help='Path to output stuff')
     parser.add_argument('--num-epochs', type=int, default=100, help='Number of training epochs')
     parser.add_argument('--batch-size', type=int, default=128, help='Batch size')
-    parser.add_argument('--lr', type=float, default=0.001, help='Learning rate')
+    parser.add_argument('--lr', type=float, default=0.00001, help='Learning rate')
     parser.add_argument('--val-size', type=float, default=0.2, help='Percent to be used for validation (0.0-1.0)')
     parser.add_argument('--verbosity', type=int, default=1, help='Verbosity (1-3)')
     parser.add_argument('--random-state', type=int, default=69, help='Random state for train_test_split')
@@ -164,7 +180,7 @@ def main():
     if not os.path.exists(os.path.join(opt.output_dir, 'logs')):
         os.makedirs(os.path.join(opt.output_dir, 'logs'))
 
-    start_time = time.time()
+    
     print('[INFO]\t Loading PTB database...')
     path = opt.data_dir
     sampling_rate=100
@@ -186,12 +202,15 @@ def main():
             if key in agg_df.index:
                 the_class = agg_df.loc[key].diagnostic_class
                 if the_class == 'NORM':
-                    tmp.append("HC")
+                    #tmp.append("HC")
+                    tmp.append(0)
                 elif the_class == 'MI':
-                    tmp.append("MI")
+                    #tmp.append("MI")
+                    tmp.append(1)
                 else:
-                    tmp.append("non-MI")
-        return list(set(tmp))
+                    # tmp.append("non-MI")
+                    tmp.append(2)
+        return tmp
 
     # Apply diagnostic superclass
     Y['diagnostic_superclass'] = Y.scp_codes.apply(aggregate_diagnostic)
@@ -201,18 +220,48 @@ def main():
     val_fold = 9
     
     # Train
-    X_train = X[(Y.strat_fold != test_fold) & (Y.strat_fold != val_fold)]
-    y_train = Y[(Y.strat_fold != test_fold) & (Y.strat_fold != val_fold)].diagnostic_superclass
+    x_train = X[(Y.strat_fold != test_fold) & (Y.strat_fold != val_fold)]
+    y_train = Y[(Y.strat_fold != test_fold) & (Y.strat_fold != val_fold)].diagnostic_superclass.values
     # Validation
-    X_val = X[np.where(Y.strat_fold == val_fold)]
-    y_val = Y[Y.strat_fold == val_fold].diagnostic_superclass
+    x_val = X[np.where(Y.strat_fold == val_fold)]
+    y_val = Y[Y.strat_fold == val_fold].diagnostic_superclass.values
     # Test
-    X_test = X[np.where(Y.strat_fold == test_fold)]
-    y_test = Y[Y.strat_fold == test_fold].diagnostic_superclass
+    x_test = X[np.where(Y.strat_fold == test_fold)]
+    y_test = Y[Y.strat_fold == test_fold].diagnostic_superclass.values
 
-    # print(X_train)
-    # print(y_train)
+    labels = []
+    remove = []
+    for i, y in enumerate(y_train):
+        if not y:
+            remove.append(i)
+        else:
+            labels.append(y[0])
     
+    x_train = np.delete(x_train, remove, axis=0)
+    y_train = np.array(labels)
+
+    labels = []
+    remove = []
+    for i, y in enumerate(y_val):
+        if not y:
+            remove.append(i)
+        else:
+            labels.append(y[0])
+    
+    x_val = np.delete(x_val, remove, axis=0)
+    y_val = np.array(labels)
+
+    labels = []
+    remove = []
+    for i, y in enumerate(y_test):
+        if not y:
+            remove.append(i)
+        else:
+            labels.append(y[0])
+    
+    x_test = np.delete(x_test, remove, axis=0)
+    y_test = np.array(labels)
+
     #training shapes are (17441, 1000, 12) (number of patient samples, 1000 points in each sample, 12 leads)
 
     print("[INFO]\t Starting training...")
@@ -229,31 +278,24 @@ def main():
     ## non-MI (non-Myocardial Infarction)
     ## MI (Myocardial Infarction)
 
-    # # we need to index classes from 0 to 4
-    # y_train = y_train - 1            
-    # y_test = y_test - 1
 
-
-    # x_train, x_val, y_train, y_val = train_test_split(x_train,
-    #                                                 y_train,
-    #                                                 test_size=opt.val_size,
-    #                                                 random_state=opt.random_state)
+    x_train = np.squeeze(x_train) #removing the None first dimension
 
     ########### Conv1D and LSTM #############
-    layer_in = layers.Input(shape=X_train.shape)
-    layer = layers.Conv1D(filters=32, kernel_size=8, activation='leaky_relu')(layer_in)
-    layer = layers.MaxPool1D(pool_size=4)(layer)
-    layer = layers.Bidirectional(layers.LSTM(16, return_sequences=False,))(layer)
-    layer = layers.Dropout(0.2)(layer)
-    layer = layers.Dense(32, activation='leaky_relu')(layer)
-    layer = layers.Dropout(0.2)(layer)
-    layer_out = layers.Dense(5, activation='softmax')(layer)
+    layer_in = layers.Input(shape=(x_train.shape[1], x_train.shape[2]))
+    layer = layers.Conv1D(filters=64, kernel_size=3, activation='relu')(layer_in)
+    layer = layers.MaxPool1D(pool_size=2)(layer)
+    layer = layers.Bidirectional(layers.LSTM(128, return_sequences=False))(layer)
+    # layer = layers.Dropout(0.2)(layer)
+    layer = layers.Dense(100, activation='relu')(layer)
+    # layer = layers.Dropout(0.2)(layer)
+    layer_out = layers.Dense(3, activation='softmax')(layer)
 
     model = keras.models.Model(layer_in, layer_out)
 
     optimizer = keras.optimizers.Adam(learning_rate=opt.lr)
     callbacks = [
-                keras.callbacks.ModelCheckpoint(os.path.join(opt.output_dir, 'ECG500model.h5'), 
+                keras.callbacks.ModelCheckpoint(os.path.join(opt.output_dir, 'PTBmodel.h5'), 
                                                 save_best_only=True, 
                                                 monitor='val_loss'),
                 keras.callbacks.ReduceLROnPlateau(monitor='val_loss', 
@@ -274,8 +316,9 @@ def main():
                 metrics=['accuracy'])
 
     model.summary()
+    start_time = time.time()
 
-    history = model.fit(X_train, y_train,
+    history = model.fit(x_train, y_train,
                         batch_size=opt.batch_size, epochs=opt.num_epochs, verbose=opt.verbosity,
                         validation_data=(x_val, y_val),
                         shuffle=True, callbacks=callbacks)
@@ -296,6 +339,12 @@ def main():
 
     test_time = "Testing time: " + str(x_test.shape[0] / (time.time() - start_time)) + " samples/sec."
     print(test_time)
+
+    y_pred = y_pred[:, 0]
+    speci = specificity(y_test, y_pred) *-1
+    print("Specificity: ", speci)
+    sensitivity = tf.keras.metrics.SensitivityAtSpecificity(speci)
+    print("Sensitivity: ", sensitivity)
 
     class_report = classification_report(y_test, y_pred_bool)
     print(class_report)

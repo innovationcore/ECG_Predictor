@@ -200,8 +200,6 @@ def specificity(y_true, y_pred):
     return specificity
 
 if __name__ == '__main__':
-	
-
 	x_train, y_train = preprocessing_f(File='../datasets/MIT-BIH/train')
 	Dataset = x_train
 	Labels = y_train
@@ -277,7 +275,7 @@ if __name__ == '__main__':
 
 	model.compile(loss=SparseCategoricalFocalLoss(gamma=2),
 				optimizer=optimizer, 
-				metrics=['accuracy']) #sparse_categorical_crossentropy, BinaryFocalLoss(gamma=2)
+				metrics=['accuracy']) #sparse_categorical_crossentropy
 
 	model.summary()
 
