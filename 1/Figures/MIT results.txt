@@ -1,0 +1,19 @@
+Training time: 653.1667983531952 sec.
+1553/1553 [==============================] - 6s 3ms/step
+Fold time: 0.0 sec.
+1553/1553 [==============================] - 6s 4ms/step - loss: 0.5356 - accuracy: 0.7979
+Test accuracy:  0.7978584170341492
+Test loss:  0.5356087684631348
+389/389 [==============================] - 4s 9ms/step
+Specificity:  tf.Tensor(0.7500000001516398, shape=(), dtype=float64)
+Testing time: 4960.500845997588 samples/sec.
+              precision    recall  f1-score   support
+
+           0       0.95      0.83      0.88     44238
+           1       0.23      0.08      0.12      1836
+           2       0.79      0.89      0.84      3221
+           3       0.00      0.07      0.01       388
+
+    accuracy                           0.80     49683
+   macro avg       0.49      0.47      0.46     49683
+weighted avg       0.90      0.80      0.84     49683

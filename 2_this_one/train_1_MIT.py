@@ -33,12 +33,12 @@ def get_model():
     img_1 = Convolution1D(32, kernel_size=3, activation=activations.relu, padding="valid")(img_1)
     img_1 = MaxPool1D(pool_size=2)(img_1)
     img_1 = Dropout(rate=0.1)(img_1)
-    img_1 = Convolution1D(32, kernel_size=3, activation=activations.relu, padding="valid")(img_1)
-    img_1 = Convolution1D(32, kernel_size=3, activation=activations.relu, padding="valid")(img_1)
-    img_1 = MaxPool1D(pool_size=2)(img_1)
-    img_1 = Dropout(rate=0.1)(img_1)
-    img_1 = Convolution1D(256, kernel_size=3, activation=activations.relu, padding="valid")(img_1)
-    img_1 = Convolution1D(256, kernel_size=3, activation=activations.relu, padding="valid")(img_1)
+    # img_1 = Convolution1D(32, kernel_size=3, activation=activations.relu, padding="valid")(img_1)
+    # img_1 = Convolution1D(32, kernel_size=3, activation=activations.relu, padding="valid")(img_1)
+    # img_1 = MaxPool1D(pool_size=2)(img_1)
+    # img_1 = Dropout(rate=0.1)(img_1)
+    img_1 = Convolution1D(64, kernel_size=3, activation=activations.relu, padding="valid")(img_1)#256
+    img_1 = Convolution1D(64, kernel_size=3, activation=activations.relu, padding="valid")(img_1)#256
     img_1 = GlobalMaxPool1D()(img_1)
     img_1 = Dropout(rate=0.2)(img_1)
 
@@ -54,9 +54,9 @@ def get_model():
     return model
 
 if __name__ == '__main__':
-    df_train = pd.read_csv("Y:\\WORK\\ECG_Predictor\\datasets\\article2sets\\mitbih_train.csv", header=None)
+    df_train = pd.read_csv("C:\\Users\\sarmstrong\\Desktop\\ECG_Predictor\\datasets\\article2sets\\mitbih_train.csv", header=None)
     df_train = df_train.sample(frac=1)
-    df_test = pd.read_csv("Y:\\WORK\\ECG_Predictor\\datasets\\article2sets\\mitbih_test.csv", header=None)
+    df_test = pd.read_csv("C:\\Users\\sarmstrong\\Desktop\\ECG_Predictor\\datasets\\article2sets\\mitbih_test.csv", header=None)
 
     Y = np.array(df_train[187].values).astype(np.int8)
     X = np.array(df_train[list(range(187))].values)[..., np.newaxis]

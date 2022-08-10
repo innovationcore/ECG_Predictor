@@ -1,0 +1,17 @@
+ORIGINAL:
+Training time: 131.44048142433167sec.
+
+Testing time: 22.05730943154462samples/sec.
+Test f1 score : 0.9938154138915318
+Test accuracy score : 0.9910683613878393
+              precision    recall  f1-score   support
+
+           0       0.98      0.98      0.98       809
+           1       0.99      0.99      0.99      2102
+
+    accuracy                           0.99      2911
+   macro avg       0.99      0.99      0.99      2911
+weighted avg       0.99      0.99      0.99      2911
+
+
+MODIFIED:

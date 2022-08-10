@@ -158,7 +158,7 @@ def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data-dir', type=str, default='../datasets/PTB/', help='Path to the PTB datasets')
     parser.add_argument('--output-dir', type=str, default='results/', help='Path to output stuff')
-    parser.add_argument('--num-epochs', type=int, default=100, help='Number of training epochs')
+    parser.add_argument('--num-epochs', type=int, default=1, help='Number of training epochs')
     parser.add_argument('--batch-size', type=int, default=128, help='Batch size')
     parser.add_argument('--lr', type=float, default=0.00001, help='Learning rate')
     parser.add_argument('--val-size', type=float, default=0.2, help='Percent to be used for validation (0.0-1.0)')

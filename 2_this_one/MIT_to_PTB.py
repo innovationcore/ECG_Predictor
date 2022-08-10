@@ -56,8 +56,8 @@ def get_model():
     return model
 
 if __name__ == '__main__':
-    df_1 = pd.read_csv("Y:\\WORK\\ECG_Predictor\\datasets\\article2sets\\ptbdb_normal.csv", header=None)
-    df_2 = pd.read_csv("Y:\\WORK\\ECG_Predictor\\datasets\\article2sets\\ptbdb_abnormal.csv", header=None)
+    df_1 = pd.read_csv("C:\\Users\\sarmstrong\\Desktop\\ECG_Predictor\\datasets\\article2sets\\ptbdb_normal.csv", header=None)
+    df_2 = pd.read_csv("C:\\Users\\sarmstrong\\Desktop\\ECG_Predictor\\datasets\\article2sets\\ptbdb_abnormal.csv", header=None)
     df = pd.concat([df_1, df_2])
 
     df_train, df_test = train_test_split(df, test_size=0.2, random_state=1337, stratify=df[187])
