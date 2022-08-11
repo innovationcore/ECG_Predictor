@@ -15,3 +15,16 @@ weighted avg       0.99      0.99      0.99      2911
 
 
 MODIFIED:
+Training time: 62.89575910568237sec.
+
+Testing time: 7381.230983517759samples/sec.
+Test f1 score : 0.9909351145038169
+Test accuracy score : 0.986946066643765
+              precision    recall  f1-score   support
+
+           0       0.97      0.98      0.98       809
+           1       0.99      0.99      0.99      2102
+
+    accuracy                           0.99      2911
+   macro avg       0.98      0.99      0.98      2911
+weighted avg       0.99      0.99      0.99      2911

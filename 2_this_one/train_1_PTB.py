@@ -34,12 +34,12 @@ def get_model():
     img_1 = Convolution1D(32, kernel_size=3, activation=activations.relu, padding="valid")(img_1)
     img_1 = MaxPool1D(pool_size=2)(img_1)
     img_1 = Dropout(rate=0.1)(img_1)
-    img_1 = Convolution1D(32, kernel_size=3, activation=activations.relu, padding="valid")(img_1)
-    img_1 = Convolution1D(32, kernel_size=3, activation=activations.relu, padding="valid")(img_1)
-    img_1 = MaxPool1D(pool_size=2)(img_1)
-    img_1 = Dropout(rate=0.1)(img_1)
-    img_1 = Convolution1D(256, kernel_size=3, activation=activations.relu, padding="valid")(img_1)
-    img_1 = Convolution1D(256, kernel_size=3, activation=activations.relu, padding="valid")(img_1)
+    # img_1 = Convolution1D(32, kernel_size=3, activation=activations.relu, padding="valid")(img_1)
+    # img_1 = Convolution1D(32, kernel_size=3, activation=activations.relu, padding="valid")(img_1)
+    # img_1 = MaxPool1D(pool_size=2)(img_1)
+    # img_1 = Dropout(rate=0.1)(img_1)
+    img_1 = Convolution1D(64, kernel_size=3, activation=activations.relu, padding="valid")(img_1)
+    img_1 = Convolution1D(64, kernel_size=3, activation=activations.relu, padding="valid")(img_1)
     img_1 = GlobalMaxPool1D()(img_1)
     img_1 = Dropout(rate=0.2)(img_1)
 
@@ -82,12 +82,12 @@ if __name__ == "__main__":
 
     model.load_weights(file_path)
 
-    start_time - time.time()
+    start_time = time.time()
 
     pred_test = model.predict(X_test)
     pred_test = (pred_test>0.5).astype(np.int8)
 
-    print("Testing time: " + str(X_test.shape[0] / (time.time() - start_time)) + "samples/sec.")
+    print("Testing time: " + str(X_test.shape[0] / (time.time() - start_time)) + " samples/sec.")
 
     cm = confusion_matrix(Y_test, pred_test)
     cm_plot(cm)
