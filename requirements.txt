@@ -1,7 +1,7 @@
-matplotlib==3.5.2
-seaborn==0.11.2
-tensorflow==2.9.1
-imbalanced-learn==0.9.1
-clearml==1.4.1
-wfdb==3.4.1
-focal-loss=0.0.7
+matplotlib
+seaborn
+tensorflow
+imbalanced-learn
+clearml
+wfdb
+focal-loss
